@@ -204,51 +204,42 @@ def network_obj_group_parsing(configuration: list) -> list:
 #=====================================API AUTH=========================================
 
 
-# server = 'https://{}'.format(config.FMC_HOST)
+def main():
+    headers = {'Content-Type': 'application/json'}
 
-# api_auth_path = "/api/fmc_platform/v1/auth/generatetoken"
-# auth_url = config.SERVER + config.API_AUTH_PATH
-headers = {'Content-Type': 'application/json'}
+    # To avoid SSL warning errors shown
+    requests.packages.urllib3.disable_warnings()
+    logging.info(f'Attempting connection to FMC {settings.FMC_HOST}...')
+    try:
+        r = requests.post(settings.AUTH_URL, headers=headers, auth=requests.auth.HTTPBasicAuth(settings.FMC_LOGIN, settings.FMC_PASSWORD), verify=False)
+        logging.info('...Connected! Auth token collected successfully')
+    except Exception as err:
+        logging.error(f"Error in generating auth token --> {str(err)} !")
+        exit()
 
-# To avoid SSL warning errors shown
-requests.packages.urllib3.disable_warnings()
-logging.info(f'Attempting connection to FMC {settings.FMC_HOST}...')
-try:
-    r = requests.post(settings.AUTH_URL, headers=headers, auth=requests.auth.HTTPBasicAuth(settings.FMC_LOGIN, settings.FMC_PASSWORD), verify=False)
-    logging.info('...Connected! Auth token collected successfully')
-except Exception as err:
-    logging.error(f"Error in generating auth token --> {str(err)} !")
-    exit()
+    AUTH_TOKEN = r.headers['X-auth-access-token']
+    DOMAIN_UUID = r.headers['DOMAIN_UUID']
 
-AUTH_TOKEN = r.headers['X-auth-access-token']
-DOMAIN_UUID = r.headers['DOMAIN_UUID']
+    #Add access-token header to headers
+    headers['X-auth-access-token'] = AUTH_TOKEN
 
-#Add access-token header to headers
-headers['X-auth-access-token'] = AUTH_TOKEN
+    try:
+        with open(f'{settings.ASA_CONFIG}', 'rt') as f:
+            asa_config = f.readlines()
+    except FileNotFoundError:
+        logging.error('Config file not found!')
+        exit()
 
-try:
-    with open(f'{settings.ASA_CONFIG}', 'rt') as f:
-        asa_config = f.readlines()
-except FileNotFoundError:
-    logging.error('Config file not found!')
-    exit()
+    network_obj_list = network_obj_parsing(configuration=asa_config)
 
-network_obj_list = network_obj_parsing(configuration=asa_config)
+    for obj_type in ['hosts', 'ranges', 'networks', 'fqdns']:
+        get_id(obj_list=network_obj_list, obj_type=obj_type)
 
-#=====================================GET Objects if they exist=========================================
+    post_data(items=network_obj_list, item_type='object')
+    network_obj_group_list = network_obj_group_parsing(configuration=asa_config)
+    post_data(items=network_obj_group_list, item_type='object-group')
+    os.system('pause')
 
-for obj_type in ['hosts', 'ranges', 'networks', 'fqdns']:
-    get_id(obj_list=network_obj_list, obj_type=obj_type)
 
-#=====================================Oject network POSTing=========================================
-
-post_data(items=network_obj_list, item_type='object')
-
-#=========================Config-parsing, getting network objects-groups=====================
-
-network_obj_group_list = network_obj_group_parsing(configuration=asa_config)
-
-#=====================================Network oject-groups POSTing=========================================
-
-post_data(items=network_obj_group_list, item_type='object-group')
-os.system('pause')
+if __name__ == '__main__':
+    main()
