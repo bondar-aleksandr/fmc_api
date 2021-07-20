@@ -7,6 +7,7 @@ import os
 import settings
 import logging
 from logging.handlers import RotatingFileHandler
+import fmc_api
 
 
 rotating_file_handler = RotatingFileHandler(
@@ -28,12 +29,12 @@ logging.basicConfig(format=u'%(filename)s [LINE:%(lineno)d] #%(levelname)-8s [%(
 
 
 def get_id(obj_list:list[dict], obj_type: str) -> None:
-    api_host = f"/api/fmc_config/v1/domain/{DOMAIN_UUID}/object/{obj_type}"
+    api_host = f"/api/fmc_config/v1/domain/{fmc.domain_uuid}/object/{obj_type}"
     url = settings.SERVER + api_host
-    r = requests.get(url, headers=headers, verify=False)
+    r = requests.get(url, headers=fmc.headers, verify=False)
     obj_amount = r.json()['paging']['count']
     params = {'limit': obj_amount}
-    r = requests.get(url, headers=headers, verify=False, params=params)
+    r = requests.get(url, headers=fmc.headers, verify=False, params=params)
     try:
         for i in r.json()['items']:
             for j in obj_list:
@@ -44,47 +45,6 @@ def get_id(obj_list:list[dict], obj_type: str) -> None:
         pass
 
 
-def post_data(items: list, item_type: str) -> None:
-    if not items:
-        logging.info(f'No {item_type} found in configuration file!')
-    for item in items:
-        if item['type'] == 'Host':
-            api_path = "/api/fmc_config/v1/domain/{}/object/hosts".format(DOMAIN_UUID)
-        elif item['type'] == 'Range':
-            api_path = "/api/fmc_config/v1/domain/{}/object/ranges".format(DOMAIN_UUID)
-        elif item['type'] == 'Network':
-            api_path = "/api/fmc_config/v1/domain/{}/object/networks".format(DOMAIN_UUID)
-        elif item['type'] == 'FQDN':
-            api_path = "/api/fmc_config/v1/domain/{}/object/fqdns".format(DOMAIN_UUID)
-        elif item['type'] == 'NetworkGroup':
-            api_path = "/api/fmc_config/v1/domain/{}/object/networkgroups".format(DOMAIN_UUID)
-        else:
-            raise ValueError('Wrong item type provided!')
-
-        url = settings.FMC_HOST + api_path
-        logging.info(f"Creating {item_type + item['name']}...")
-
-        try:
-            r = requests.post(url, data=json.dumps(item), headers=headers, verify=False)
-            status_code = r.status_code
-            resp = r.text
-
-            if status_code == 201 or status_code == 202:
-                obj_id = r.json()['id']
-                item['id'] = obj_id
-                logging.info(f"{item['name']} was successfully created!")
-            elif status_code == 400:
-                logging.warning(f"{item['name']} already exists!")
-            else:
-                r.raise_for_status()
-                logging.error(f"{item['name']} encountered an error during POST --> {resp}")
-
-        except requests.exceptions.HTTPError as err:
-            logging.error(f"Error in connection --> {str(err)}")
-    logging.info(f'POSTing of {item_type} is done!')
-
-
-#========================================== ARGUMENTS ===========================================
 
 print('!!! Nested object-groups are not supported (group-object command inside object-group is ignored). Please add it manually!!!\n')
 
@@ -203,28 +163,8 @@ def network_obj_group_parsing(configuration: list) -> list:
 
 #=====================================API AUTH=========================================
 
-
-# server = 'https://{}'.format(config.FMC_HOST)
-
-# api_auth_path = "/api/fmc_platform/v1/auth/generatetoken"
-# auth_url = config.SERVER + config.API_AUTH_PATH
-headers = {'Content-Type': 'application/json'}
-
-# To avoid SSL warning errors shown
-requests.packages.urllib3.disable_warnings()
-logging.info(f'Attempting connection to FMC {settings.FMC_HOST}...')
-try:
-    r = requests.post(settings.AUTH_URL, headers=headers, auth=requests.auth.HTTPBasicAuth(settings.FMC_LOGIN, settings.FMC_PASSWORD), verify=False)
-    logging.info('...Connected! Auth token collected successfully')
-except Exception as err:
-    logging.error(f"Error in generating auth token --> {str(err)} !")
-    exit()
-
-AUTH_TOKEN = r.headers['X-auth-access-token']
-DOMAIN_UUID = r.headers['DOMAIN_UUID']
-
-#Add access-token header to headers
-headers['X-auth-access-token'] = AUTH_TOKEN
+fmc = fmc_api.FMC()
+fmc.connect()
 
 try:
     with open(f'{settings.ASA_CONFIG}', 'rt') as f:
@@ -235,20 +175,10 @@ except FileNotFoundError:
 
 network_obj_list = network_obj_parsing(configuration=asa_config)
 
-#=====================================GET Objects if they exist=========================================
-
 for obj_type in ['hosts', 'ranges', 'networks', 'fqdns']:
     get_id(obj_list=network_obj_list, obj_type=obj_type)
 
-#=====================================Oject network POSTing=========================================
-
-post_data(items=network_obj_list, item_type='object')
-
-#=========================Config-parsing, getting network objects-groups=====================
-
+fmc.post_objects(items=network_obj_list, item_type='object')
 network_obj_group_list = network_obj_group_parsing(configuration=asa_config)
-
-#=====================================Network oject-groups POSTing=========================================
-
-post_data(items=network_obj_group_list, item_type='object-group')
+fmc.post_objects(items=network_obj_group_list, item_type='object-group')
 os.system('pause')
