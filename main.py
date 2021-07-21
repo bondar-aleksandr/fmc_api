@@ -49,21 +49,25 @@ def main():
     except fmc_api.ConnError:
         exit()
 
-    asa_config = asa_api.AsaConfig()
+    asa = asa_api.Asa()
     try:
-        asa_config.read()
+        asa.read()
     except asa_api.ConfigFileError:
         exit()
 
-    network_obj_list = asa_config.network_obj_parsing()
+    network_obj_list = asa.parse_netw_obj()
 
     # TODO: what for?
     # for obj_type in ['hosts', 'ranges', 'networks', 'fqdns']:
     #     get_id(obj_list=network_obj_list, obj_type=obj_type)
 
-    fmc.post_objects(items=network_obj_list, item_type='object')
-    network_obj_group_list = asa_config.network_obj_group_parsing()
-    fmc.post_objects(items=network_obj_group_list, item_type='object-group')
+    for obj in network_obj_list:
+        obj_id = fmc.post_objects(item=obj, item_type='object')
+
+        asa.add_obj_id(obj_id)
+
+    network_obj_group_list = asa.parse_netw_obj_groups()
+    fmc.post_objects(item=network_obj_group_list, item_type='object-group')
     logging.info('Done!')
 
 if __name__ == '__main__':

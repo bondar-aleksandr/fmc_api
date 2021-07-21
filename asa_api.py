@@ -7,7 +7,7 @@ class ConfigFileError(Exception):
     pass
 
 
-class AsaConfig:
+class Asa:
     def __init__(self, config_file = settings.ASA_CONFIG):
         self.config_file = config_file
         self.config = None
@@ -22,7 +22,7 @@ class AsaConfig:
             raise ConfigFileError('Config file not found!')
 
 
-    def network_obj_parsing(self) -> list:
+    def parse_netw_obj(self) -> list:
 
         network_obj = []
         # switch variable used in order to distinguish between network and service objects in config
@@ -74,11 +74,11 @@ class AsaConfig:
             elif re.match(r'object-group', line) and network_obj:
                 break
 
-        self._network_obj = tuple(network_obj)
+        self._network_obj = network_obj
         return network_obj
 
 
-    def network_obj_group_parsing(self) -> list:
+    def parse_netw_obj_groups(self) -> list:
 
         network_obj_groups = []
         logging.info('Parsing network objects-groups...')
@@ -125,3 +125,8 @@ class AsaConfig:
 
         self._network_obj_groups = tuple(network_obj_groups)
         return network_obj_groups
+
+    def add_obj_id(self, obj_id: str):
+        for obj in self._network_obj:
+            obj['id'] = obj_id
+        self._network_obj = tuple(self._network_obj)
