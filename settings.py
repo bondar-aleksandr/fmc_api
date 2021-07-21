@@ -6,7 +6,7 @@ load_dotenv()
 ASA_CONFIG = 'asa_run.txt'
 FMC_LOGIN = os.getenv('login')
 FMC_PASSWORD = os.getenv('password')
-FMC_HOST = '1.2.3.4'
+FMC_HOST = '172.18.59.15'
 SERVER = f'https://{FMC_HOST}'
 API_AUTH_PATH = "/api/fmc_platform/v1/auth/generatetoken"
 AUTH_URL = SERVER + API_AUTH_PATH

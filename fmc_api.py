@@ -3,12 +3,16 @@ import requests
 import logging
 import json
 
+class ConnError(Exception):
+    pass
 
 class FMC:
     def __init__(self, login=settings.FMC_LOGIN, password=settings.FMC_PASSWORD, host=settings.FMC_HOST):
         self.login = login
         self.password = password
         self.host = host
+        self.domain_uuid = None
+        self._auth_token = None
 
 
     def connect(self):
@@ -18,11 +22,11 @@ class FMC:
         logging.info(f'Connecting to FMC {settings.FMC_HOST}...')
         try:
             r = requests.post(settings.AUTH_URL, headers=self.headers,
-                              auth=requests.auth.HTTPBasicAuth(self.login, self.password), verify=False)
+                              auth=requests.auth.HTTPBasicAuth(self.login, self.password), verify=False, timeout=5)
             logging.info('...Connected! Auth token collected successfully')
         except Exception as err:
             logging.error(f"Error in generating auth token --> {str(err)} !")
-            raise ConnectionError('Cannot get auth token!')
+            raise ConnError('Cannot get auth token!')
 
         else:
             self._auth_token = r.headers['X-auth-access-token']
