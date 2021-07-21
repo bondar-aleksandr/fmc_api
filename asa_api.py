@@ -74,7 +74,6 @@ class Asa:
             elif re.match(r'object-group', line) and network_obj:
                 break
 
-        self._network_obj = network_obj
         return network_obj
 
 
@@ -123,10 +122,4 @@ class Asa:
             elif re.match(r'access-list', line) and network_obj_groups:
                 break
 
-        self._network_obj_groups = tuple(network_obj_groups)
         return network_obj_groups
-
-    def add_obj_id(self, obj_id: str):
-        for obj in self._network_obj:
-            obj['id'] = obj_id
-        self._network_obj = tuple(self._network_obj)

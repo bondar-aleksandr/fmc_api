@@ -57,17 +57,15 @@ def main():
 
     network_obj_list = asa.parse_netw_obj()
 
-    # TODO: what for?
-    # for obj_type in ['hosts', 'ranges', 'networks', 'fqdns']:
-    #     get_id(obj_list=network_obj_list, obj_type=obj_type)
-
     for obj in network_obj_list:
-        obj_id = fmc.post_objects(item=obj, item_type='object')
+        obj['id'] = fmc.post_objects(item=obj, item_type='object')
 
-        asa.add_obj_id(obj_id)
+    # TODO: create model class, where data for posting is stored
 
     network_obj_group_list = asa.parse_netw_obj_groups()
-    fmc.post_objects(item=network_obj_group_list, item_type='object-group')
+
+    for obj_group in network_obj_group_list:
+        fmc.post_objects(item=obj_group, item_type='object-group')
     logging.info('Done!')
 
 if __name__ == '__main__':

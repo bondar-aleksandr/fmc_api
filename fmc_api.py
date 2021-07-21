@@ -37,11 +37,10 @@ class FMC:
 
     def post_objects(self, item: dict, item_type: str) -> Union[None,str]:
 
-        # for item in items:
         api_path = f'/api/fmc_config/v1/domain/{self.domain_uuid}/object'
 
         if item['type'] == 'Host':
-            api_path += "/hosts"
+            api_path += '/hosts'
         elif item['type'] == 'Range':
             api_path += "/ranges"
         elif item['type'] == 'Network':
@@ -49,7 +48,7 @@ class FMC:
         elif item['type'] == 'FQDN':
             api_path += "/fqdns"
         elif item['type'] == 'NetworkGroup':
-            api_path += "/networkgroups"
+            api_path += '/networkgroups'
         else:
             raise ValueError('Wrong item type provided!')
 
