@@ -73,7 +73,7 @@ class Asa:
                     pass
             elif re.match(r'object-group', line) and network_obj:
                 break
-
+        self.network_obj = network_obj
         return network_obj
 
 
@@ -110,7 +110,7 @@ class Asa:
                 elif re.match(r' network-object object', line):
                     match = re.match(r' network-object object (?P<obj_name>\S+)', line)
                     obj_name = match.group('obj_name')
-                    for i in self._network_obj:
+                    for i in self.network_obj:
                         if i['name'] == obj_name:
                             obj_id = i['id']
                             obj_type = i['type']
