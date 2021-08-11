@@ -47,8 +47,15 @@ def parse_serv_obj_group(config):
         serv_obj_group: IOSCfgLine
         element = {}
         name = serv_obj_group.re_match_typed('^object-group service (\S+)')
-        for child in serv_obj_group.children:
+        #for tcp/udp service-groups
+        if serv_obj_group.re_match_typed('^object-group service \S+ (\S+)'):
             pass
+        else:
+            for child in serv_obj_group.children:
+                child: IOSCfgLine
+                if child.re_match_typed('service-object object (\S+)'):
+                    pass
+
 
 
 def parse_netw_obj(config)->dict:
@@ -138,9 +145,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-
-
-
-
