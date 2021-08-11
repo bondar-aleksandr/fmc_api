@@ -1,21 +1,58 @@
 import json
 import ipaddress
 
-import ciscoconfparse
-from ciscoconfparse import CiscoConfParse
+from ciscoconfparse import CiscoConfParse, IOSCfgLine
+
+import settings
 
 parse = CiscoConfParse('asa_config.txt', syntax='asa')
 config_elements = {}
 config_elements['object_network'] = []
 config_elements['object-group_network'] = []
+config_elements['object_service'] = {}
+
+for serv_obj in parse.find_objects(r'object service'):
+    serv_obj: IOSCfgLine
+    element = {}
+    name = serv_obj.re_match_typed('^object service (\S+)')
+    #element['name'] = serv_obj.re_match_typed('^object service (\S+)')
+    for child in serv_obj.children:
+        if child.re_match_typed('service (\S+)'):
+            protocol_raw = child.re_match_typed('service (\S+)')
+            protocol = settings.protocol_mapping[protocol_raw]
+            element['protocol'] = protocol
+            if child.re_match_typed('service \S+ (\S+)'):
+                direction_raw = child.re_match_typed('service \S+ (\S+)')
+                if direction_raw == 'destination':
+                    direction = 'dst'
+                elif direction_raw == 'source':
+                    direction = 'src'
+                element['direction'] = direction
+                operator_ = child.re_match_typed('service \S+ \S+ (\S+)')
+                port_raw = child.re_match_typed('service \S+ \S+ \S+ (\S+)')
+                if operator_ == 'eq':
+                    port = port_raw
+                elif operator_ == 'gt':
+                    port = f'{port_raw}-65535'
+                elif operator_ == 'lt':
+                    port = f'0-{port_raw}'
+                elif operator_ == 'range':
+                    port_start = child.re_match_typed('service \S+ \S+ \S+ (\S+)')
+                    port_stop = child.re_match_typed('service \S+ \S+ \S+ \S+ (\S+)')
+                    port = f'{port_start}-{port_stop}'
+                element['port'] = port
+    config_elements['object_service'][name] = element
+
+
+
 
 for netw_obj in parse.find_objects(r'^object network'):
-    netw_obj: ciscoconfparse.IOSCfgLine
+    netw_obj: IOSCfgLine
 
     element = {}
     element['name'] = netw_obj.re_match_typed('^object network (\S+)')
     for child in netw_obj.children:
-        child: ciscoconfparse.IOSCfgLine
+        child: IOSCfgLine
         if child.re_match_typed('description (.*)'):
             element['description'] = child.re_match_typed('description (.*)')
         elif child.re_match_typed('subnet (\S+)'):
@@ -39,7 +76,7 @@ for netw_obj in parse.find_objects(r'^object network'):
 
 
 for netw_obj_group in parse.find_objects(r'^object-group network'):
-    netw_obj_group: ciscoconfparse.IOSCfgLine
+    netw_obj_group: IOSCfgLine
 
     element = {}
     element['name'] = netw_obj_group.re_match_typed('^object-group network (\S+)')
@@ -47,7 +84,7 @@ for netw_obj_group in parse.find_objects(r'^object-group network'):
     element['objects'] = []
     element['literals'] = []
     for child in netw_obj_group.children:
-        child: ciscoconfparse.IOSCfgLine
+        child: IOSCfgLine
         literal = {}
         object_ = {}
         if child.re_match_typed(r'description (\S+)'):
