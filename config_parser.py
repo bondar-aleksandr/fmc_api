@@ -29,16 +29,18 @@ for serv_obj in parse.find_objects(r'object service'):
                     direction = 'src'
                 element['direction'] = direction
                 operator_ = child.re_match_typed('service \S+ \S+ (\S+)')
-                port_raw = child.re_match_typed('service \S+ \S+ \S+ (\S+)')
-                if operator_ == 'eq':
-                    port = port_raw
+                port = child.re_match_typed('service \S+ \S+ \S+ (\S+)')
+                if not port.isdigit():
+                    port = settings.port_mapping[port]
                 elif operator_ == 'gt':
-                    port = f'{port_raw}-65535'
+                    port = f'{port}-65535'
                 elif operator_ == 'lt':
-                    port = f'0-{port_raw}'
+                    port = f'0-{port}'
                 elif operator_ == 'range':
-                    port_start = child.re_match_typed('service \S+ \S+ \S+ (\S+)')
+                    port_start = port
                     port_stop = child.re_match_typed('service \S+ \S+ \S+ \S+ (\S+)')
+                    if not port_stop.isdigit():
+                        port_stop = settings.port_mapping[port_stop]
                     port = f'{port_start}-{port_stop}'
                 element['port'] = port
     config_elements['object_service'][name] = element
