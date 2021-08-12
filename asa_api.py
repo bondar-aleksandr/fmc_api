@@ -92,50 +92,57 @@ class Asa:
 
                 for child in serv_obj_group.children:
                     child: IOSCfgLine
+                    if child.re_match_typed('description (\S+)'):
+                        continue
                     if child.re_match_typed('service-object object (\S+)'):
                         serv_obj = child.re_match_typed('service-object object (\S+)')
+                        element = {}
+                        element['type'] = self.config_elements['object_service'][serv_obj]['type']
+                        element['protocol'] = self.config_elements['object_service'][serv_obj]['protocol']
+                        element['port'] = self.config_elements['object_service'][serv_obj]['port']
                         if self.config_elements['object_service'][serv_obj]['direction'] == 'destination':
-                            element = {}
-                            element['type'] = 'PortLiteral'
-                            element['protocol'] = self.config_elements['object_service'][serv_obj]['protocol']
-                            element['port'] = self.config_elements['object_service'][serv_obj]['port']
                             result[name]['destinationPorts']['literals'].append(element)
                         elif self.config_elements['object_service'][serv_obj]['direction'] == 'source':
-                            element = {}
-                            element['type'] = 'PortLiteral'
-                            element['protocol'] = self.config_elements['object_service'][serv_obj]['protocol']
-                            element['port'] = self.config_elements['object_service'][serv_obj]['port']
                             result[name]['sourcePorts']['literals'].append(element)
-
                     elif child.re_match_typed('service-object (\S+)'):
                         element = {}
-                        protocol = settings.protocol_mapping[child.re_match_typed('service-object (\S+)')]
-                        element['type'] = 'PortLiteral'
+                        protocol = child.re_match_typed('-object (\S+)')
+                        if not protocol.isdigit():
+                            protocol = settings.protocol_mapping[protocol]
                         element['protocol'] = protocol
-                        if child.re_match_typed('-object \S+ (\S+)'):
-                            direction = child.re_match_typed('-object \S+ (\S+)')
-                            operator_ = child.re_match_typed('-object \S+ \S+ (\S+)')
-                            port = child.re_match_typed('-object \S+ \S+ \S+ (\S+)')
-                            if not port.isdigit():
-                                print(child)
-                                port = settings.port_mapping[port]
-                            elif operator_ == 'gt':
-                                port = f'{port}-65535'
-                            elif operator_ == 'lt':
-                                port = f'0-{port}'
-                            elif operator_ == 'range':
-                                port_start = port
-                                port_stop = child.re_match_typed('-object \S+ \S+ \S+ \S+ (\S+)')
-                                if not port_stop.isdigit():
-                                    port_stop = settings.port_mapping[port_stop]
-                                port = f'{port_start}-{port_stop}'
-                            element['port'] = port
-                            if direction == 'destination':
-                                result[name]['destinationPorts']['literals'].append(element)
-                            elif direction == 'source':
-                                result[name]['sourcePorts']['literals'].append(element)
-                            else:
-                                result[name]['destinationPorts']['literals'].append(element)
+                        if protocol == '1':
+                            element['type'] = 'ICMPv4PortLiteral'
+                            if child.re_match_typed('-object \S+ (\S+)'):
+                                icmp_type = child.re_match_typed('-object \S+ (\S+)')
+                                if not icmp_type.isdigit():
+                                    icmp_type = settings.imcp_codes[icmp_type]
+                                element['icmpType'] = icmp_type
+                        else:
+                            element['type'] = 'PortLiteral'
+                            element['protocol'] = protocol
+                            if child.re_match_typed('-object \S+ (\S+)'):
+                                direction = child.re_match_typed('-object \S+ (\S+)')
+                                operator_ = child.re_match_typed('-object \S+ \S+ (\S+)')
+                                port = child.re_match_typed('-object \S+ \S+ \S+ (\S+)')
+                                if not port.isdigit():
+                                    port = settings.port_mapping[port]
+                                elif operator_ == 'gt':
+                                    port = f'{port}-65535'
+                                elif operator_ == 'lt':
+                                    port = f'0-{port}'
+                                elif operator_ == 'range':
+                                    port_start = port
+                                    port_stop = child.re_match_typed('-object \S+ \S+ \S+ \S+ (\S+)')
+                                    if not port_stop.isdigit():
+                                        port_stop = settings.port_mapping[port_stop]
+                                    port = f'{port_start}-{port_stop}'
+                                element['port'] = port
+                                if direction == 'destination':
+                                    result[name]['destinationPorts']['literals'].append(element)
+                                elif direction == 'source':
+                                    result[name]['sourcePorts']['literals'].append(element)
+                                else:
+                                    result[name]['destinationPorts']['literals'].append(element)
         self.config_elements['object-group_service'] = result
         return result
 
@@ -315,5 +322,5 @@ asa.read()
 asa.parse_netw_obj()
 asa.parse_netw_obj_groups()
 asa.parse_serv_obj()
-#asa.parse_serv_obj_group()
+asa.parse_serv_obj_group()
 asa.print_()
